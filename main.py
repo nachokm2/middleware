@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # 🟢 Importa antes de usarla
 from openai import OpenAI
 import json
 import requests
@@ -6,6 +7,7 @@ import time
 import os
 
 app = Flask(__name__)
+CORS(app)  # ✅ Habilita CORS correctamente
 
 # Inicializa el cliente OpenAI con la API key desde variable de entorno
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -66,16 +68,9 @@ def chat():
 
     mensajes = client.beta.threads.messages.list(thread_id=thread.id)
 
-    # Asumiendo que la respuesta está en el último mensaje y tiene el formato esperado
     try:
         respuesta = mensajes.data[-1].content[0].text.value
     except (IndexError, AttributeError):
         return jsonify({"error": "No se pudo obtener la respuesta"}), 500
 
-    return jsonify({"respuesta": respuesta})
-
-
-if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 5000))  # Render asigna el puerto como variable de entorno
-    app.run(host="0.0.0.0", port=port)
+    return
