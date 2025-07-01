@@ -73,6 +73,10 @@ def chat():
         mensajes = client.beta.threads.messages.list(thread_id=thread.id)
         print(f"Mensajes recibidos: {mensajes}")
 
+        # Imprime el contenido completo del último mensaje del asistente
+        print("Contenido completo del último mensaje del asistente:")
+        print(mensajes.data[-1].content)
+
         try:
             respuesta = mensajes.data[-1].content[0].text.value
             print(f"Respuesta final: {respuesta}")
