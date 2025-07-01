@@ -28,7 +28,7 @@ def chat():
     # Ejecutar asistente
     run = client.beta.threads.runs.create(
         thread_id=thread.id,
-        assistant_id="asst_tu_id_aqui"
+        assistant_id="asst_eh2jnFxcgzhVif20Nnt0PmUh"
     )
 
     max_wait_seconds = 30
