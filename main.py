@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS  # 🟢 Importa antes de usarla
+from flask_cors import CORS
 from openai import OpenAI
 import json
 import requests
@@ -7,49 +7,53 @@ import time
 import os
 
 app = Flask(__name__)
-CORS(app)  # ✅ Habilita CORS correctamente
+CORS(app)
 
-# Inicializa el cliente OpenAI con la API key desde variable de entorno
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 @app.route("/chat", methods=["POST"])
 def chat():
     try:
         mensaje = request.json.get("mensaje")
+        print(f"Mensaje recibido: {mensaje}")
         if not mensaje:
             return jsonify({"error": "No se recibió el mensaje"}), 400
 
         thread = client.beta.threads.create()
+        print(f"Thread creado: {thread.id}")
 
-        # Crear mensaje del usuario
         client.beta.threads.messages.create(
             thread_id=thread.id,
             role="user",
             content=mensaje
         )
 
-        # Ejecutar asistente
         run = client.beta.threads.runs.create(
             thread_id=thread.id,
             assistant_id="asst_eh2jnFxcgzhVif20Nnt0PmUh"
         )
+        print(f"Run creado: {run.id}")
 
         max_wait_seconds = 30
         waited = 0
 
-        # Loop esperando tool call o finalización
         while waited < max_wait_seconds:
             run_info = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+            print(f"Estado run: {run_info.status}")
 
             if run_info.status == "completed":
+                print("Run completado")
                 break
 
             if run_info.status == "requires_action":
                 for call in run_info.required_action.submit_tool_outputs.tool_calls:
+                    print(f"Tool call detectada: {call.function.name}")
                     if call.function.name == "buscar_estudiante":
                         args = json.loads(call.function.arguments)
-                        # Llamada a tu API externa
+                        print(f"Argumentos tool call: {args}")
+
                         resultado = requests.post("https://project-sheets.onrender.com/api/matricula", json=args).json()
+                        print(f"Respuesta API externa: {resultado}")
 
                         client.beta.threads.runs.submit_tool_outputs(
                             thread_id=thread.id,
@@ -63,15 +67,17 @@ def chat():
                         )
             time.sleep(1)
             waited += 1
-
         else:
             return jsonify({"error": "Tiempo de espera agotado"}), 504
 
         mensajes = client.beta.threads.messages.list(thread_id=thread.id)
+        print(f"Mensajes recibidos: {mensajes}")
 
         try:
             respuesta = mensajes.data[-1].content[0].text.value
-        except (IndexError, AttributeError):
+            print(f"Respuesta final: {respuesta}")
+        except (IndexError, AttributeError) as e:
+            print(f"Error extrayendo respuesta: {e}")
             return jsonify({"error": "No se pudo obtener la respuesta"}), 500
 
         return jsonify({"respuesta": respuesta})
