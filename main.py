@@ -15,27 +15,21 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 def chat():
     try:
         mensaje = request.json.get("mensaje")
-        thread_id = request.json.get("thread_id")  # Recibimos thread_id desde el frontend si existe
-
         print(f"Mensaje recibido: {mensaje}")
         if not mensaje:
             return jsonify({"error": "No se recibió el mensaje"}), 400
 
-        if not thread_id:
-            thread = client.beta.threads.create()
-            thread_id = thread.id
-            print(f"Thread creado: {thread_id}")
-        else:
-            print(f"Usando thread existente: {thread_id}")
+        thread = client.beta.threads.create()
+        print(f"Thread creado: {thread.id}")
 
         client.beta.threads.messages.create(
-            thread_id=thread_id,
+            thread_id=thread.id,
             role="user",
             content=mensaje
         )
 
         run = client.beta.threads.runs.create(
-            thread_id=thread_id,
+            thread_id=thread.id,
             assistant_id="asst_eh2jnFxcgzhVif20Nnt0PmUh"
         )
         print(f"Run creado: {run.id}")
@@ -44,7 +38,7 @@ def chat():
         waited = 0
 
         while waited < max_wait_seconds:
-            run_info = client.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            run_info = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
             print(f"Estado run: {run_info.status}")
 
             if run_info.status == "completed":
@@ -62,7 +56,7 @@ def chat():
                         print(f"Respuesta API externa: {resultado}")
 
                         client.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread_id,
+                            thread_id=thread.id,
                             run_id=run.id,
                             tool_outputs=[
                                 {
@@ -76,21 +70,22 @@ def chat():
         else:
             return jsonify({"error": "Tiempo de espera agotado"}), 504
 
-        mensajes = client.beta.threads.messages.list(thread_id=thread_id)
+        mensajes = client.beta.threads.messages.list(thread_id=thread.id)
         print(f"Mensajes recibidos: {mensajes}")
 
-        print("Contenido completo del último mensaje del asistente:")
-        print(mensajes.data[-1].content)
+        # Buscar el último mensaje del asistente
+        respuesta = None
+        for mensaje in reversed(mensajes.data):
+            if mensaje.role == "assistant":
+                if mensaje.content and hasattr(mensaje.content[0], "text"):
+                    respuesta = mensaje.content[0].text.value
+                    break
 
-        try:
-            respuesta = mensajes.data[-1].content[0].text.value
-            print(f"Respuesta final: {respuesta}")
-        except (IndexError, AttributeError) as e:
-            print(f"Error extrayendo respuesta: {e}")
-            return jsonify({"error": "No se pudo obtener la respuesta"}), 500
+        if not respuesta:
+            return jsonify({"error": "No se pudo obtener una respuesta del asistente"}), 500
 
-        # Devuelvo respuesta y thread_id para mantener contexto
-        return jsonify({"respuesta": respuesta, "thread_id": thread_id})
+        print(f"Respuesta final: {respuesta}")
+        return jsonify({"respuesta": respuesta})
 
     except Exception as e:
         print(f"Error en /chat: {e}")
