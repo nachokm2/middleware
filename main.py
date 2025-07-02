@@ -51,11 +51,27 @@ def chat():
                     args = json.loads(call.function.arguments)
                     print(f"Argumentos tool call: {args}")
 
+                    resultado = {}
+
                     if call.function.name == "buscar_estudiante":
-                        resultado = requests.post("https://project-sheets.onrender.com/api/matricula", json=args).json()
+                        try:
+                            res = requests.post("https://project-sheets.onrender.com/api/matricula", json=args)
+                            resultado = res.json()
+                            print("Respuesta API matrícula:", resultado)
+                        except Exception as e:
+                            print("Error en API matrícula:", e)
+                            print("Respuesta cruda:", res.text)
+                            resultado = {"error": "Error al procesar la respuesta de la API de matrícula"}
 
                     elif call.function.name == "buscar_programa":
-                        resultado = requests.post("https://project-sheets.onrender.com/api/oferta", json=args).json()
+                        try:
+                            res = requests.post("https://project-sheets.onrender.com/api/oferta", json=args)
+                            resultado = res.json()
+                            print("Respuesta API oferta:", resultado)
+                        except Exception as e:
+                            print("Error en API oferta:", e)
+                            print("Respuesta cruda:", res.text)
+                            resultado = {"error": "Error al procesar la respuesta de la API de programas"}
 
                     else:
                         resultado = {"error": f"Función no reconocida: {call.function.name}"}
