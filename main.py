@@ -48,23 +48,27 @@ def chat():
             if run_info.status == "requires_action":
                 for call in run_info.required_action.submit_tool_outputs.tool_calls:
                     print(f"Tool call detectada: {call.function.name}")
+                    args = json.loads(call.function.arguments)
+                    print(f"Argumentos tool call: {args}")
+
                     if call.function.name == "buscar_estudiante":
-                        args = json.loads(call.function.arguments)
-                        print(f"Argumentos tool call: {args}")
-
                         resultado = requests.post("https://project-sheets.onrender.com/api/matricula", json=args).json()
-                        print(f"Respuesta API externa: {resultado}")
 
-                        client.beta.threads.runs.submit_tool_outputs(
-                            thread_id=thread.id,
-                            run_id=run.id,
-                            tool_outputs=[
-                                {
-                                    "tool_call_id": call.id,
-                                    "output": json.dumps(resultado)
-                                }
-                            ]
-                        )
+                    elif call.function.name == "buscar_programa":
+                        resultado = requests.post("https://project-sheets.onrender.com/api/oferta", json=args).json()
+
+                    else:
+                        resultado = {"error": f"Función no reconocida: {call.function.name}"}
+
+                    client.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread.id,
+                        run_id=run.id,
+                        tool_outputs=[{
+                            "tool_call_id": call.id,
+                            "output": json.dumps(resultado)
+                        }]
+                    )
+
             time.sleep(1)
             waited += 1
         else:
